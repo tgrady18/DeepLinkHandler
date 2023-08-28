@@ -14,12 +14,12 @@ public class DeepLinkHandler {
     public static let shared = DeepLinkHandler()
     
     // URL Session for API Call
-    private let urlSession = URLSession(configuration: .default)
+    public let urlSession = URLSession(configuration: .default)
     
     // API Endpoint
-    private var apiEndpoint: URL?
+    public var apiEndpoint: URL?
     
-    private init() {}
+    public init() {}
     
     // Setup API endpoint
     public func setup(apiEndpoint: String) {
