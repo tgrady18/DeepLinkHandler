@@ -4,7 +4,6 @@
 //
 //  Created by Trevor (personal) on 2023-08-28.
 //
-
 import Foundation
 import UIKit
 
@@ -16,22 +15,20 @@ public class DeepLinkHandler {
     // URL Session for API Call
     public let urlSession = URLSession(configuration: .default)
     
-    // API Endpoint
-    public var apiEndpoint: URL?
+    // Stepler API Endpoint
+    public let steplerAPIEndpoint = URL(string: "https://api.stepler.io/v3/webhook/partners/app-install")!
     
-    public init() {}
+    // API Key for Stepler
+    public var apiKey: String?
     
-    // Setup API endpoint
-    public func setup(apiEndpoint: String) {
-        self.apiEndpoint = URL(string: apiEndpoint)
+    public init() {
+        if let path = Bundle.main.path(forResource: "Info", ofType: "plist"),
+           let dict = NSDictionary(contentsOfFile: path) as? [String: AnyObject] {
+            apiKey = dict["X-SERVICE-ACCOUNT-KEY"] as? String
+        }
     }
     
-    // Handle DeepLink
-    public func handleDeepLink(url: URL) {
-        guard let apiEndpoint = apiEndpoint else {
-            print("API Endpoint is not set.")
-            return
-        }
+    public func handleDeepLink(url: URL, completion: @escaping (Bool, Error?) -> Void) {
         
         // Parsing logic
         if let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
@@ -41,23 +38,37 @@ public class DeepLinkHandler {
                 params[item.name] = item.value
             }
             
-            // Forwarding to API
-            var request = URLRequest(url: apiEndpoint)
+            // Prepare request
+            var request = URLRequest(url: steplerAPIEndpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(apiKey, forHTTPHeaderField: "X-SERVICE-ACCOUNT-KEY")
             
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: params, options: [])
             } catch {
-                print("Error creating JSON payload.")
+                completion(false, error)
                 return
             }
             
+            // Make the API call
             let task = urlSession.dataTask(with: request) { (data, response, error) in
                 if let error = error {
-                    print("Error: \(error.localizedDescription)")
+                    completion(false, error)
+                    return
                 }
-                // Further logic if needed
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 200 {
+                    // Success
+                    completion(true, nil)
+                    
+                    // Post a notification
+                    NotificationCenter.default.post(name: NSNotification.Name(rawValue: "DeepLinkSuccess"), object: nil)
+                } else {
+                    // Failed
+                    completion(false, nil)
+                }
             }
             task.resume()
         }
