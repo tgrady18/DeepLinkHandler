@@ -16,7 +16,7 @@ public class DeepLinkHandler {
     public let urlSession = URLSession(configuration: .default)
     
     // Stepler API Endpoint
-    public let steplerAPIEndpoint = URL(string: "https://api.stepler.io/v3/webhook/partners/app-install")!
+    public let steplerAPIEndpoint = URL(string: "https://api.staging-stepler.io/v3/webhook/partners/app-install")!
     
     // API Key for Stepler
     public var apiKey: String?
@@ -36,9 +36,23 @@ public class DeepLinkHandler {
         if let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
            let queryItems = components.queryItems {
             
+            // Check if the URL contains the argument "stepler"
+            guard components.path.contains("stepler") else {
+                print("The deep link does not contain the 'stepler' argument.")  // Log here
+                completion(false, nil)
+                return
+            }
+
             var params = [String: String]()
             for item in queryItems {
                 params[item.name] = item.value
+            }
+            
+            // Check if the required parameters are present
+            guard let _ = params["userId"], let _ = params["partnerAppCampaignId"], let _ = params["language"] else {
+                print("The deep link is missing one or more required parameters: userId, partnerAppCampaignId, language.")  // Log here
+                completion(false, nil)
+                return
             }
             
             print("Parsed params: \(params)")  // Log here
@@ -74,12 +88,11 @@ public class DeepLinkHandler {
                     // Post a notification
                     NotificationCenter.default.post(name: NSNotification.Name(rawValue: "DeepLinkSuccess"), object: nil)
                 } else {
-                                completion(false, nil)
-                                print("Failed to make API call, HTTP status not 200")  // Log here
-                            }
-                        }
-                        task.resume()
-            
+                    completion(false, nil)
+                    print("Failed to make API call, HTTP status not 200")  // Log here
+                }
+            }
+            task.resume()
         }
     }
 }
