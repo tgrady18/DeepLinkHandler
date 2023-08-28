@@ -30,13 +30,18 @@ public class DeepLinkHandler {
     
     public func handleDeepLink(url: URL, completion: @escaping (Bool, Error?) -> Void) {
         
+        print("Handling deep link: \(url)")  // Log here
+        
         // Parsing logic
         if let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
            let queryItems = components.queryItems {
+            
             var params = [String: String]()
             for item in queryItems {
                 params[item.name] = item.value
             }
+            
+            print("Parsed params: \(params)")  // Log here
             
             // Prepare request
             var request = URLRequest(url: steplerAPIEndpoint)
@@ -53,8 +58,11 @@ public class DeepLinkHandler {
             
             // Make the API call
             let task = urlSession.dataTask(with: request) { (data, response, error) in
+                print("HTTP Response: \(String(describing: response))")  // Log here
+                
                 if let error = error {
                     completion(false, error)
+                    print("API error: \(error)")  // Log here
                     return
                 }
                 
@@ -66,11 +74,12 @@ public class DeepLinkHandler {
                     // Post a notification
                     NotificationCenter.default.post(name: NSNotification.Name(rawValue: "DeepLinkSuccess"), object: nil)
                 } else {
-                    // Failed
-                    completion(false, nil)
-                }
-            }
-            task.resume()
+                                completion(false, nil)
+                                print("Failed to make API call, HTTP status not 200")  // Log here
+                            }
+                        }
+                        task.resume()
+            
         }
     }
 }
