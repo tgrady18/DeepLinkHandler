@@ -33,62 +33,87 @@ public class DeepLinkHandler {
         print("Handling deep link: \(url)")  // Log here
         
         // Parsing logic
-        if let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-           let queryItems = components.queryItems {
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: true) {
             
-            // Check if the URL contains the argument "stepler"
-         
-
-            var params = [String: String]()
-            for item in queryItems {
-                params[item.name] = item.value
-            }
+            // Log the components for debugging
+            print("URL Components: \(components)")
             
-            // Check if the required parameters are present
-            guard let _ = params["userId"], let _ = params["partnerAppCampaignId"], let _ = params["language"] else {
-                print("The deep link is missing one or more required parameters: userId, partnerAppCampaignId, language.")  // Log here
-                completion(false, nil)
-                return
-            }
-            
-            print("Parsed params: \(params)")  // Log here
-            
-            // Prepare request
-            var request = URLRequest(url: steplerAPIEndpoint)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(apiKey, forHTTPHeaderField: "X-SERVICE-ACCOUNT-KEY")
-            
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: params, options: [])
-            } catch {
-                completion(false, error)
-                return
-            }
-            
-            // Make the API call
-            let task = urlSession.dataTask(with: request) { (data, response, error) in
-                print("HTTP Response: \(String(describing: response))")  // Log here
+            if let queryItems = components.queryItems {
                 
-                if let error = error {
-                    completion(false, error)
-                    print("API error: \(error)")  // Log here
+                // Log the query items
+                print("Query items found: \(queryItems)")
+                
+                // Check if the URL contains the argument "stepler"
+                if components.host != "stepler" {
+                    print("The deep link does not contain the 'stepler' argument.")  // Log here
+                    completion(false, nil)
                     return
                 }
                 
-                if let httpResponse = response as? HTTPURLResponse,
-                   httpResponse.statusCode == 200 {
-                    // Success
-                    completion(true, nil)
-                    
-                    // Post a notification
-                    NotificationCenter.default.post(name: NSNotification.Name(rawValue: "DeepLinkSuccess"), object: nil)
-                } else {
-                    completion(false, nil)
-                    print("Failed to make API call, HTTP status not 200")  // Log here
+                var params = [String: String]()
+                for item in queryItems {
+                    params[item.name] = item.value
                 }
+                
+                // Check if the required parameters are present
+                guard let userId = params["userId"], let campaignId = params["partnerAppCampaignId"], let language = params["language"] else {
+                    print("The deep link is missing one or more required parameters: userId, partnerAppCampaignId, language.")  // Log here
+                    completion(false, nil)
+                    return
+                }
+                
+                print("Parsed params: \(params)")  // Log here
+                
+                // Log the required parameters
+                print("userId: \(userId), partnerAppCampaignId: \(campaignId), language: \(language)")
+                
+                // Prepare request
+                var request = URLRequest(url: steplerAPIEndpoint)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue(apiKey, forHTTPHeaderField: "X-SERVICE-ACCOUNT-KEY")
+                
+                do {
+                    request.httpBody = try JSONSerialization.data(withJSONObject: params, options: [])
+                } catch {
+                    print("JSON serialization failed with error: \(error)") // Log here
+                    completion(false, error)
+                    return
+                }
+                
+                // Make the API call
+                let task = urlSession.dataTask(with: request) { (data, response, error) in
+                    print("HTTP Response: \(String(describing: response))")  // Log here
+                    
+                    if let error = error {
+                        print("API error: \(error)")  // Log here
+                        completion(false, error)
+                        return
+                    }
+                    
+                    if let httpResponse = response as? HTTPURLResponse {
+                        print("HTTP status code: \(httpResponse.statusCode)") // Log here
+                        
+                        if httpResponse.statusCode == 200 {
+                            // Success
+                            completion(true, nil)
+                            
+                            // Post a notification
+                            NotificationCenter.default.post(name: NSNotification.Name(rawValue: "DeepLinkSuccess"), object: nil)
+                        } else {
+                            print("Failed to make API call, HTTP status not 200, \(response)")
+                            
+                            // Log here
+                            completion(false, nil)
+                        }
+                    }
+                }
+                task.resume()
+            } else {
+                print("No query items found in URL.")  // Log here
             }
-            task.resume()
+        } else {
+            print("Failed to create URLComponents from the deep link.")  // Log here
         }
     }
 }
