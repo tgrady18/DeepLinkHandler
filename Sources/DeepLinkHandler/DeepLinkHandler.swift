@@ -37,11 +37,7 @@ public class DeepLinkHandler {
            let queryItems = components.queryItems {
             
             // Check if the URL contains the argument "stepler"
-            guard components.path.contains("stepler") else {
-                print("The deep link does not contain the 'stepler' argument.")  // Log here
-                completion(false, nil)
-                return
-            }
+         
 
             var params = [String: String]()
             for item in queryItems {
